@@ -1,0 +1,5 @@
+/usr/bin/hive
+Tables created successfully
+music_raw count	50683
+listening_raw count	9711301
+STATISTICS
