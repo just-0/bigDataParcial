@@ -19,13 +19,13 @@
 \maketitle
 
 \section{Introducción}
-Se implementó un pipeline completo de procesamiento de datos musicales procesando 4M+ interacciones de usuarios con 50K+ canciones usando AWS EMR. El proyecto incluye 10 jobs distribuidos: 5 Hive, 1 Spark MLlib y 4 MapReduce.
+Se implementó un pipeline completo de procesamiento de datos musicales procesando 4M+ interacciones de usuarios con 50K+ canciones usando AWS EMR. El proyecto incluye 10 jobs distribuidos: 5 Hive, 1 Spark MLlib y 4 MapReduce. Y para su visualización con interfaz se uso Streamlit, el output se encuentra en el github.
 
 \subsection{Arquitectura}
 \begin{itemize}
     \item \textbf{Storage}: Amazon S3 (1.5 GB total)
     \item \textbf{Compute}: EMR 6.15.0, instancias m4.large
-    \item \textbf{Stack}: Hadoop, Hive, Spark, MapReduce
+    \item \textbf{Stack}: Hadoop, Hive, Spark, MapReduce	
 \end{itemize}
 
 \section{Implementación}
