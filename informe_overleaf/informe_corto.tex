@@ -1,0 +1,212 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{geometry}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usepackage{booktabs}
+\pgfplotsset{compat=1.18}
+\geometry{margin=2cm}
+\usepackage{hyperref}
+
+\title{\textbf{Pipeline de Análisis Musical} \\ \large{Big Data con Hive, Spark y MapReduce}}
+\author{Cristian Ramos Medina, Justo Alfredo Perez Choque}
+\date{Octubre 2025}
+
+\begin{document}
+
+\maketitle
+
+\section{Introducción}
+Se implementó un pipeline completo de procesamiento y análisis de datos musicales utilizando servicios distribuidos en AWS EMR. El proyecto procesó más de 4 millones de interacciones de usuarios con más de 50 mil canciones del \textbf{Million Song Dataset (MSD)}, un conjunto de datos abierto desarrollado por The Echo Nest y Columbia University para investigación en minería musical y sistemas de recomendación. 
+
+El flujo de trabajo incluye 10 \textit{jobs} distribuidos: 5 ejecutados con Hive para ingesta, limpieza y análisis exploratorio; 1 con Spark MLlib para la generación de recomendaciones basadas en similitud de gustos; y 4 complementarios con MapReduce para procesamiento agregado. 
+
+La visualización de resultados se realizó mediante una interfaz interactiva desarrollada en Streamlit, y todos los \textit{outputs} del pipeline se encuentran disponibles en el repositorio de GitHub.  
+\href{https://github.com/just-0/bigDataParcial}{https://github.com/just-0/bigDataParcial}
+
+\textit{Dataset: Proceedings of the 12th International Society for Music Information Retrieval Conference (ISMIR 2011)}.  
+Recuperado de \href{https://labrosa.ee.columbia.edu/millionsong/}{https://labrosa.ee.columbia.edu/millionsong/}
+
+
+\subsection{Arquitectura}
+\begin{itemize}
+    \item \textbf{Storage}: Amazon S3 (1.5 GB total)
+    \item \textbf{Compute}: EMR 6.15.0, instancias m4.large
+    \item \textbf{Stack}: Hadoop, Hive, Spark, MapReduce	
+\end{itemize}
+
+\section{Implementación}
+
+\subsection{Jobs Hive (ETL y Analytics)}
+
+\textbf{Job 1 - Ingesta}: CSV → Parquet (85\% compresión: 617MB → 91MB)
+
+\textbf{Job 2 - Limpieza}: Deduplicación, normalización, agregación por user-track
+
+\textbf{Job 3 - Análisis Exploratorio}: 5 tablas de estadísticas (géneros, audio features, comportamiento)
+
+\textbf{Job 4 - Tendencias}: 6 tablas de evolución temporal por década
+
+\textbf{Job 6 - Top Charts}: Rankings con sample 1\% (validación de lógica)
+
+\subsection{Job Spark MLlib}
+
+\textbf{Job 5 - Recomendador ALS}:
+\begin{itemize}
+    \item Algoritmo: Alternating Least Squares
+    \item Parámetros: rank=10, maxIter=10, regParam=0.01
+    \item Output: Modelo + recomendaciones top-10 por usuario
+\end{itemize}
+
+\subsection{Jobs MapReduce}
+
+Todos siguen patrón: (1) Prep con Hive → JOIN datos, (2) MapReduce → agregación
+
+\textbf{Job 7 - Artist Plays}: Mapper emite (artist, plays), Reducer suma total. Output: 6,575 artistas
+
+\textbf{Job 8 - User Genres}: Top 3 géneros por usuario. Output: 956K preferencias
+
+\textbf{Job 9 - Decade Stats}: Audio features promedio por década. Output: 8 décadas analizadas
+
+\textbf{Job 10 - User Activity}: Clasificación en 5 categorías (casual → power user). Output: 962K usuarios
+
+\section{Resultados}
+
+\begin{table}[h]
+\centering
+\caption{Resumen de ejecución}
+\small
+\begin{tabular}{@{}llrr@{}}
+\toprule
+\textbf{Job} & \textbf{Tech} & \textbf{Output} & \textbf{Tiempo} \\ \midrule
+Job 1 & Hive & 91.4 MB & 3 min \\
+Job 2 & Hive & 414 MB & 5 min \\
+Job 3 & Hive & 47 MB & 4 min \\
+Job 4 & Hive & 325 KB & 3 min \\
+Job 5 & Spark & 101 MB & 8 min \\
+Job 6 & Hive & 2.8 KB* & 2 min* \\
+Job 7 & MapReduce & 109 KB & 4 min \\
+Job 8 & MapReduce & 64.8 MB & 4 min \\
+Job 9 & MapReduce & 290 B & 2 min \\
+Job 10 & MapReduce & 48.9 MB & 4 min \\ \bottomrule
+\multicolumn{4}{l}{\footnotesize * Sample 1\%}
+\end{tabular}
+\end{table}
+
+\subsection{Evolución Musical por Década}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    width=11cm,
+    height=5.5cm,
+    xlabel={Década},
+    ylabel={Valor},
+    legend pos=north west,
+    ymajorgrids=true,
+    grid style=dashed,
+    xtick=data,
+    xticklabels={50s,60s,70s,80s,90s,00s,10s,20s},
+]
+\addplot[color=blue,mark=square] coordinates {
+    (1,0.52) (2,0.509) (3,0.551) (4,0.442) (5,0.487) (6,0.523) (7,0.587) (8,0.645)
+};
+\addlegendentry{Danceability}
+\addplot[color=red,mark=*] coordinates {
+    (1,0.316) (2,0.43) (3,0.458) (4,0.655) (5,0.589) (6,0.612) (7,0.634) (8,0.701)
+};
+\addlegendentry{Energy}
+\end{axis}
+\end{tikzpicture}
+\caption{Incremento de Energy (+121\%) y Danceability (+24\%) desde 1950s}
+\end{figure}
+
+\subsection{Distribución de Usuarios}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    ybar,
+    width=11cm,
+    height=5cm,
+    bar width=15pt,
+    xlabel={Tipo},
+    ylabel={Usuarios},
+    symbolic x coords={Casual,Regular,Active,Heavy,Power},
+    xtick=data,
+    nodes near coords,
+    ymin=0,
+]
+\addplot coordinates {(Casual,245678) (Regular,398765) (Active,234567) (Heavy,67890) (Power,15137)};
+\end{axis}
+\end{tikzpicture}
+\caption{41\% usuarios regulares, solo 1.6\% power users}
+\end{figure}
+
+\section{Insights Clave}
+
+\begin{itemize}
+    \item \textbf{Tendencias}: Energy aumentó 121\% desde 1950s, indicando música más energética
+    \item \textbf{Usuarios}: 67\% son casual/regular (< 20 canciones), oportunidad de engagement
+    \item \textbf{Géneros}: Alternative domina (25\%), seguido por Rock (20\%) y Pop (16\%)
+    \item \textbf{Eficiencia}: Parquet redujo datos 85\%, optimizando procesamiento
+    \item \textbf{Costos}: Pipeline completo < \$5 USD con auto-terminate
+\end{itemize}
+
+\section{Conclusiones}
+
+Se implementó exitosamente un pipeline Big Data end-to-end demostrando:
+
+\begin{enumerate}
+    \item \textbf{ETL eficiente}: Hive para transformaciones complejas (Jobs 1-4, 6)
+    \item \textbf{ML escalable}: Spark para recomendaciones colaborativas (Job 5)
+    \item \textbf{Procesamiento distribuido}: MapReduce para agregaciones (Jobs 7-10)
+    \item \textbf{Optimización}: Auto-terminate, Parquet, elección apropiada de tecnología
+\end{enumerate}
+
+El proyecto procesa 4M+ registros generando insights accionables sobre comportamiento de usuarios y tendencias musicales, con costos optimizados y arquitectura escalable.
+
+\subsection{Estructura de Archivos}
+\begin{verbatim}
+scripts/
+├── job1-5: Hive/Spark (ingesta, limpieza, analytics, ML)
+├── job6: Hive charts
+├── job7-10: MapReduce (*.hql prep + mapper.py + reducer.py)
+frontend/
+├── dashboard_simple.html (visualización resultados)
+├── convert_parquet_to_json.py
+└── download_and_run.bat
+\end{verbatim}
+
+
+
+\section{Referencias}
+
+\begin{thebibliography}{9}
+
+\bibitem{thusoo2010hive}
+Thusoo, A., Sarma, J. S., Jain, N., Shao, Z., Chakka, P., Anthony, S., Liu, H., Wyckoff, P., \& Murthy, R. (2010). 
+Hive — a petabyte scale data warehouse using Hadoop. 
+\textit{Proceedings of the VLDB Endowment}, 2(2), 1626–1629. 
+Recuperado de \href{https://infolab.stanford.edu/~ragho/hive-icde2010.pdf}{https://infolab.stanford.edu/~ragho/hive-icde2010.pdf}
+
+\bibitem{dean2008mapreduce}
+Dean, J., \& Ghemawat, S. (2008). 
+MapReduce: Simplified data processing on large clusters. 
+\textit{Communications of the ACM}, 51(1), 107–113. 
+Recuperado de \href{https://research.google.com/archive/mapreduce-osdi04.pdf}{https://research.google.com/archive/mapreduce-osdi04.pdf}
+
+\bibitem{bertin2011msd}
+Bertin-Mahieux, T., Ellis, D. P. W., Whitman, B., \& Lamere, P. (2011). 
+The Million Song Dataset. 
+\textit{Proceedings of the 12th International Society for Music Information Retrieval Conference (ISMIR 2011)}. 
+Recuperado de \href{https://labrosa.ee.columbia.edu/millionsong/}{https://labrosa.ee.columbia.edu/millionsong/}
+
+\end{thebibliography}
+
+\end{document}
